@@ -31,6 +31,9 @@ __pycache__/
 # Database files
 backend/db.sqlite3
 
+# Database files (all .db files)
+*.db
+
 # IDE files
 .vscode/
 .idea/
