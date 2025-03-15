@@ -1,0 +1,54 @@
+# Node modules (for frontend)
+frontend/node_modules/
+
+# Build outputs (for frontend)
+frontend/build/
+frontend/.next/
+frontend/.vite/
+frontend/.parcel-cache/
+
+# Logs
+*.log
+*.log.*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python virtual environments (for backend)
+backend/venv/
+backend/__pycache__/
+
+# FastAPI migrations
+backend/alembic/
+
+# Python bytecode files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Database files
+backend/db.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+
+# Testing coverage
+coverage/
+*.coveragerc
+
+# Python egg and distribution files
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Docker files
+backend/.docker/
+frontend/.docker/
+
+# Other
+*.env
+*.env.*
