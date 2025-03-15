@@ -1,0 +1,169 @@
+.App {
+    display: flex;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.bg-blur {
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.signin {
+    border: 2px solid #333;
+}
+
+.bg-og {
+    background-color: #FF9500;
+}
+
+.og {
+    color: #FF9500;
+}
+
+/* Base scrollbar settings */
+.custom-scroll {
+    overflow-y: auto;
+}
+
+/* Scrollbar Track */
+.custom-scroll::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background-color: #222;
+    /* Dark gray track */
+    padding: 2px;
+}
+
+/* Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+    width: 14px;
+    background-color: #F5F5F5;
+    padding: 2px;
+}
+
+/* Scrollbar Thumb */
+.custom-scroll::-webkit-scrollbar-thumb {
+    background-color: #444;
+    /* Light gray thumb */
+    border-radius: 10px;
+    /* Rounded thumb */
+    border: 4px solid #222;
+    /* Optional: Adds spacing effect */
+    width: 10px;
+}
+
+/* Hover Effect */
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+    /* Darker shade of light gray on hover */
+}
+
+/* Input box styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 2px solid #555;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+/* Focus effect */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: #FF9500;
+    /* Blue border when focused */
+    box-shadow: 0 0 5px rgba(58, 141, 255, 0.5);
+    /* Blue glow */
+}
+
+/* Placeholder styling */
+input::placeholder,
+textarea::placeholder {
+    color: #bbb;
+    opacity: 0.8;
+}
+
+/* Hover effect */
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+textarea:hover {
+    border-color: #FF9500;
+    /* Darker border when hovered */
+}
+
+/* Disabled state */
+input:disabled,
+textarea:disabled {
+    background-color: #444;
+    color: #888;
+    border: 2px solid #666;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #555;
+    border-radius: 5px;
+    outline: none;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+/* Custom thumb styling */
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #FF9500;
+    /* macOS Orange */
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(255, 149, 0, 0.5);
+    transition: transform 0.2s ease-in-out;
+}
+
+.slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #FF9500;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(255, 149, 0, 0.5);
+}
+
+.debug,
+.debug * {
+    outline: 1px solid gold !important;
+}
+
+.shadow-6 {
+    box-shadow: rgba(0, 0, 0, 0.56) 0px 22px 70px 50px;
+}
+
+.link {
+    color: #FF9500;
+    text-decoration: underline;
+    cursor: pointer;
+}
