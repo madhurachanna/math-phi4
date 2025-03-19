@@ -85,6 +85,6 @@ export const getUserProfile = () => apiRequest("GET", "/users/me");
 export const getChatHistory = () => apiRequest("GET", "/chats/history");
 
 // Send a chat message and store it
-export const sendChatMessage = (message: string) => apiRequest("POST", "/chats/send", { message });
+export const sendChatMessage = (message: string) => apiRequest("POST", "/chats", { question: message });
 
 export default api;

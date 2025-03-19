@@ -63,6 +63,11 @@
     /* Darker shade of light gray on hover */
 }
 
+.c-inp {
+    border-radius: 99999px !important;
+    background: #222 !important;
+}
+
 /* Input box styling */
 input[type="text"],
 input[type="email"],
@@ -166,4 +171,15 @@ textarea:disabled {
     color: #FF9500;
     text-decoration: underline;
     cursor: pointer;
+}
+
+.textarea-custom {
+    height: 60px;
+    max-height: 120px;
+    overflow-y: auto;
+    width: 100%;
+    min-width: 100%;
+    resize: none;
+    box-sizing: border-box;
+    line-height: 1.5;
 }

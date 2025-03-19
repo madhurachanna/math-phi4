@@ -36,7 +36,7 @@ def get_history(db: Session = Depends(get_db), user: User = Depends(get_current_
     history = (
         db.query(Chat)
         .filter(Chat.user_id == user.id)
-        .order_by(Chat.id.desc())
+        # .order_by(Chat.id.desc())
         .limit(15)
         .all()
     )
