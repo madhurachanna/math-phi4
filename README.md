@@ -22,6 +22,7 @@ Ensure you have the following installed:
 - **Virtual Environment (venv)**
 - **SQLite** (comes bundled with Python)
 - **CUDA** (for GPU acceleration, optional)
+- **Unsloth** (Fine Tuning)
 
 ---
 
