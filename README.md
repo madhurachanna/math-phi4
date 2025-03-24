@@ -22,6 +22,7 @@ Ensure you have the following installed:
 - **Virtual Environment (venv)**
 - **SQLite** (comes bundled with Python)
 - **CUDA** (for GPU acceleration, optional)
+- **Unsloth** (Fine Tuning)
 
 ---
 
@@ -47,16 +48,10 @@ Ensure you have the following installed:
    pip install -r requirements.txt
    ```
 
-4. Run database migrations (if needed):
-
-   ```bash
-   alembic upgrade head
-   ```
-
 5. Start the FastAPI server:
 
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn app.main:app
    ```
 
 6. Open Swagger Docs:
@@ -81,7 +76,7 @@ Ensure you have the following installed:
 3. Start the development server:
 
    ```bash
-   yarn dev
+   yarn start
    ```
 
 4. Open the browser and go to:
