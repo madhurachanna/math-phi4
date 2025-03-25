@@ -24,6 +24,10 @@ Ensure you have the following installed:
 - **CUDA** (for GPU acceleration, optional)
 - **Unsloth** (Fine Tuning)
 
+Download the saved LoRA Weights from GDRIVE -
+https://drive.google.com/file/d/1j4ex9NN1GxO9vnAHAJ_gtqgodO6HuBtB/view?usp=sharing
+
+
 ---
 
 ## 🔧 Backend Setup (FastAPI + SQLite)
