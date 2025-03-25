@@ -24,14 +24,20 @@ Ensure you have the following installed:
 - **CUDA** (for GPU acceleration, optional)
 - **Unsloth** (Fine Tuning)
 
+---
 Download the saved LoRA Weights from GDRIVE -
 https://drive.google.com/file/d/1j4ex9NN1GxO9vnAHAJ_gtqgodO6HuBtB/view?usp=sharing
+
+Video Link to see the project in action -
+https://drive.google.com/file/d/1u1crR5D5IuxLSjk0TrCCPvbiexRfYPeZ/view?usp=sharing
 
 For Environment details please go through the 'environment.yml' file.
 Main Libraries used are -
 
 - Unsloth
 - Pytorch
+
+---
 
 ---
 
