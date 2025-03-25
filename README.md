@@ -27,6 +27,11 @@ Ensure you have the following installed:
 Download the saved LoRA Weights from GDRIVE -
 https://drive.google.com/file/d/1j4ex9NN1GxO9vnAHAJ_gtqgodO6HuBtB/view?usp=sharing
 
+For Environment details please go through the 'environment.yml' file.
+Main Libraries used are -
+
+- Unsloth
+- Pytorch
 
 ---
 
