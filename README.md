@@ -1,5 +1,5 @@
 
-# Human-AI Chatbot
+# Tutor AI 
 
 This project is a full-stack chatbot application powered by **FastAPI** for the backend and **React + TypeScript** for the frontend. The chatbot uses a **fine-tuned Qwen2.5-3B-Instruct** model to generate responses.
 
@@ -23,6 +23,21 @@ Ensure you have the following installed:
 - **SQLite** (comes bundled with Python)
 - **CUDA** (for GPU acceleration, optional)
 - **Unsloth** (Fine Tuning)
+
+---
+Download the saved LoRA Weights from GDRIVE -
+https://drive.google.com/file/d/1j4ex9NN1GxO9vnAHAJ_gtqgodO6HuBtB/view?usp=sharing
+
+Video Link to see the project in action -
+https://drive.google.com/file/d/1u1crR5D5IuxLSjk0TrCCPvbiexRfYPeZ/view?usp=sharing
+
+For Environment details please go through the 'environment.yml' file.
+Main Libraries used are -
+
+- Unsloth
+- Pytorch
+
+---
 
 ---
 
@@ -124,6 +139,23 @@ Ensure you have the following installed:
    ```
 
 - Deploy to Vercel, Netlify, or GitHub Pages.
+
+- Sample Sceenshots:
+
+  Sign Up Page -
+  ![Screenshot from 2025-03-24 15-24-58](https://github.com/user-attachments/assets/d46c6887-48ed-4fb7-bd8c-3fb15bae45d7)
+
+
+  ![Screenshot from 2025-03-24 15-24-46](https://github.com/user-attachments/assets/9d8ed472-73bb-4703-ae8c-925709210f85)
+
+
+  Sign In Page
+  ![Screenshot from 2025-03-24 15-21-42](https://github.com/user-attachments/assets/e6f12486-2dfd-495e-a914-80cf3df7e144)
+
+
+  Chat Window
+  ![Screenshot from 2025-03-24 15-22-00](https://github.com/user-attachments/assets/88c6ae76-9249-4682-94a9-2b5e7a0432b6)
+
 
 ---
 
