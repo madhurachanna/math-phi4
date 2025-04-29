@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { setUser } from "../services/store/userSlice"; // Adjust the path accordingly
-import VerbositySlider from "./verbositySlider";
+import VerbositySlider from "./verbositySlider"; // Assuming this component exists
 import { signup } from "../services/api"; // Assuming you've defined the signup function
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -14,7 +14,8 @@ const SignUp: React.FC = () => {
     const [password, setPassword] = useState("");
     const [bio, setBio] = useState("");
     const [error, setError] = useState("");
-    const [level, setLevel] = useState(1);
+    // --- Renamed state variable and setter ---
+    const [explanationLevel, setExplanationLevel] = useState<number>(1); // Default to level 1 (e.g., Concise)
 
     const handleSubmit = async () => {
         if (!name || !email || !password || !bio) {
@@ -26,25 +27,45 @@ const SignUp: React.FC = () => {
 
         // Send data to backend via signup API
         try {
-            const userData = { name, email, password, bio, level };
+            // --- Changed key name to match backend expectation ---
+            const userData = {
+                name,
+                email,
+                password,
+                bio,
+                explanation_level: explanationLevel // Use snake_case key and correct state variable
+            };
             const response = await signup(userData); // API request to sign up
 
-            // On success, store the user data in Redux
-            dispatch(setUser({
-                name: response.name,
-                email: response.email,
-                bio: response.bio,
-                token: response.token,
-                level: response.level,
-            }));
+            // Assuming the backend response includes the user details and token,
+            // and uses 'explanation_level' as the key for the level.
+            if (response && response.token && response.name && response.email) {
+                // On success, store the user data in Redux
+                dispatch(setUser({
+                    name: response.name,
+                    email: response.email,
+                    bio: response.bio,
+                    token: response.token,
+                    // --- Read correct field name from backend response ---
+                    explanation_level: response.explanation_level, // Assuming backend returns explanation_level
+                }));
 
-            // Save the token in localStorage
-            localStorage.setItem("token", response.token);
+                // Save the token in localStorage
+                localStorage.setItem("token", response.token);
 
-            // Redirect user to the home page
-            navigate('/'); // Redirect to home/dashboard after successful signup
-        } catch (err) {
-            setError("Sign up failed. Please try again.");
+                // Redirect user to the home page
+                navigate('/'); // Redirect to home/dashboard after successful signup
+            } else {
+                // Handle cases where the response might be missing expected data
+                console.error("Signup response missing expected data:", response);
+                setError("Signup completed but failed to retrieve user details. Please try logging in.");
+            }
+
+        } catch (err: any) { // Catch specific error types if possible
+            console.error("Signup API error:", err);
+            // Provide more specific error feedback if available from the error object
+            const errorMessage = err.response?.data?.detail || "Sign up failed. Please try again.";
+            setError(errorMessage);
         }
     };
 
@@ -53,7 +74,7 @@ const SignUp: React.FC = () => {
             <h1 className="f2 mb3">Sign Up to Your Math Tutorial! 👋</h1>
             <p className="f4 mb4 text-center">Let's get started by creating your account!</p>
 
-            {error && <p className="f5 red">{error}</p>}
+            {error && <p className="f5 red tc mv2">{error}</p>} {/* Centered error */}
 
             <div className="w-100 mb3">
                 <label className="f5 db" htmlFor="name">Your Name</label>
@@ -99,14 +120,20 @@ const SignUp: React.FC = () => {
                     placeholder="Tell us a little about yourself"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
+                    rows={3} // Added rows for better textarea appearance
                 />
             </div>
 
-            <VerbositySlider onLevelChange={setLevel} />
+            {/* --- Renamed prop passed to VerbositySlider ---
+             * NOTE: You will also need to update the VerbositySlider component
+             * to accept 'onExplanationLevelChange' as a prop instead of 'onLevelChange'
+             * and ensure it calls this function with the numeric level (1-4).
+             */}
+            <VerbositySlider onExplanationLevelChange={setExplanationLevel} />
 
-            <div className="mt4">
+            <div className="mt4 w-100"> {/* Ensure button takes full width of its container */}
                 <button
-                    className="f4 dim br3 ph3 pv2 dib white bg-og pointer w-100"
+                    className="f4 dim br3 ph3 pv2 dib white bg-og pointer w-100" // Use w-100 for full width
                     onClick={handleSubmit}
                 >
                     Sign Up
