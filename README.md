@@ -1,4 +1,3 @@
-
 # Human-AI Chatbot
 
 This project is a full-stack chatbot application powered by **FastAPI** for the backend and **React + TypeScript** for the frontend. The chatbot uses a **fine-tuned Qwen2.5-3B-Instruct** model to generate responses.
