@@ -1,11 +1,12 @@
+// --- File: frontend/src/services/store/index.ts ---
 import { configureStore } from "@reduxjs/toolkit";
-import chatReducer from "./chatSlice";
-import userReducer from "./userSlice"; // Assuming userSlice exists
+import sessionReducer from "./sessionSlice";
+import userReducer from "./userSlice";
 
 export const store = configureStore({
     reducer: {
         user: userReducer,
-        chat: chatReducer,
+        session: sessionReducer,
     },
 });
 

@@ -1,91 +1,84 @@
-# --- File: app/chats.py ---
-
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+from datetime import datetime
 
-# Import Integer if defining the model field here or ensure it's imported in models.py
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-)  # Example imports for model definition comment
+from app.models import User, Chat, ChatSession
+from app.database import get_db
+from app.auth import get_current_user
+from app.ml_model import get_llm
+from llama_cpp import Llama
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
-from app.database import get_db
-from app.models import (
-    Chat,
-    User,
-)  # Assuming Chat model and User model are defined
-# *** Assumption: Ensure your User model in app/models.py has a field ***
-# *** like 'explanation_level: int' to store user preference (1-4).  ***
-# *** Example in User model (SQLAlchemy):                             ***
-# *** explanation_level = Column(Integer, default=2) # 1:Concise, 2:Detailed, 3:Elaborate, 4:Comprehensive ***
 
-from app.auth import get_current_user
-from app.ml_model import get_llm  # Import the dependency to get the loaded model
-from llama_cpp import Llama  # Import Llama for type hinting
-from typing import List, Dict, Any, Optional  # For type hinting history
-import traceback  # For detailed error logging
-import logging  # For better logging
+import logging
+import traceback
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Pydantic Models ---
 
-
-class QuestionRequest(BaseModel):
-    question: str
-
-
-class ChatResponse(BaseModel):
+class SessionListItem(BaseModel):
     id: int
+    title: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SessionResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SessionUpdateRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=100)
+
+
+class MessageBase(BaseModel):
     question: str
     answer: str
 
-    class Config:
-        orm_mode = True  # Enable ORM mode (compatibility with SQLAlchemy models)
 
-
-class HistoryItem(BaseModel):
+class MessageResponse(MessageBase):
     id: int
-    question: str
-    answer: str
-    # Add timestamp or other fields if needed from your Chat model
-    # from datetime import datetime
-    # timestamp: Optional[datetime] = None
+    session_id: int
+    timestamp: datetime
 
     class Config:
-        orm_mode = True  # Enable ORM mode
+        from_attributes = True
 
 
-# --- System Prompts for Different Explanation Levels ---
+class MessageCreateRequest(BaseModel):
+    question: str
 
-# NOTE: Define these prompts clearly based on desired output for each level.
 
-SYSTEM_PROMPT_CONCISE = (  # Level 1
+SYSTEM_PROMPT_CONCISE = (
     "You are a math tutor AI. Provide the final answer directly and clearly. "
     "Only include the absolute minimum key steps needed to reach the solution. "
     "Avoid explanations, analogies, or conversational filler. Prefix the final answer with 'Final Answer:'."
 )
-
-SYSTEM_PROMPT_DETAILED = (  # Level 2
+SYSTEM_PROMPT_DETAILED = (
     "You are a helpful AI math tutor. Explain concepts clearly. "
     "Before providing the final answer, outline your reasoning step-by-step "
     "as a 'chain-of-thought'. Explain *why* each step is taken. "
     "Clearly mark the final answer by prefixing it with 'Final Answer:'. Maintain a slightly conversational tone."
 )
-
-SYSTEM_PROMPT_ELABORATE = (  # Level 3
+SYSTEM_PROMPT_ELABORATE = (
     "You are an explanatory AI math tutor. Your goal is clarity and context. "
     "1. Provide a detailed step-by-step ('chain-of-thought') solution, briefly explaining the mathematical principle behind the main steps. "
     "2. Briefly mention the core mathematical concepts being used (e.g., 'This involves solving a linear equation'). "
     "3. Optionally, point out one common mistake related to this type of problem. "
     "4. Clearly mark the final numerical result by prefixing it with 'Final Answer:'. Maintain an encouraging tone."
 )
-
-SYSTEM_PROMPT_COMPREHENSIVE = (  # Level 4
+SYSTEM_PROMPT_COMPREHENSIVE = (
     "You are a comprehensive AI math tutor. Your goal is to ensure deep understanding. "
     "For the given problem: "
     "1. Provide a highly detailed step-by-step ('chain-of-thought') solution, explaining the purpose and the mathematical principle behind each step (e.g., 'applying the additive inverse property'). "
@@ -94,110 +87,201 @@ SYSTEM_PROMPT_COMPREHENSIVE = (  # Level 4
     "4. Clearly mark the final numerical result by prefixing it with 'Final Answer:'. Be thorough and educational."
 )
 
-# --- API Router ---
 
-router = APIRouter(prefix="/chats", tags=["Chats"])
-
-
-# --- Endpoint: Ask Question ---
-
-
-@router.post("/", response_model=ChatResponse)
-def ask_question(
-    request: QuestionRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(
-        get_current_user
-    ),  # Gets authenticated user (with their preferences)
-    llm: Llama = Depends(get_llm),  # Inject the loaded Llama instance
-):
-    """
-    Handles a user's math question based on their selected explanation level (stored as 1-4),
-    gets a response from the LLM, saves the interaction, and returns it.
-    """
-    logger.info(f"Received question from user {user.id}: '{request.question}'")
-
-    # --- 1. Determine System Prompt based on User Preference (Integer Level) ---
-    # Map integer levels stored in DB (1-4) to system prompts and names
+def get_system_prompt_for_user(user: User) -> str:
+    """Determines the correct system prompt based on user's explanation level."""
     prompt_mapping = {
         1: (SYSTEM_PROMPT_CONCISE, "Concise"),
         2: (SYSTEM_PROMPT_DETAILED, "Detailed"),
         3: (SYSTEM_PROMPT_ELABORATE, "Elaborate"),
         4: (SYSTEM_PROMPT_COMPREHENSIVE, "Comprehensive"),
     }
-    DEFAULT_LEVEL_INT = 2  # Default level integer (Detailed)
+    DEFAULT_LEVEL_INT = 2
 
-    # Get user's preference (assuming 'explanation_level' attribute stores 1, 2, 3, or 4)
     raw_level = getattr(user, "explanation_level", DEFAULT_LEVEL_INT)
-    print("raw_level", raw_level)
-
+    explanation_level_int = DEFAULT_LEVEL_INT
     try:
-        # Ensure the level is an integer
-        explanation_level_int = int(raw_level)
+        if raw_level is not None:
+            explanation_level_int = int(raw_level)
+            if explanation_level_int not in prompt_mapping:
+                logger.warning(
+                    f"User {user.id} had out-of-range level: {explanation_level_int}. Defaulting."
+                )
+                explanation_level_int = DEFAULT_LEVEL_INT
+        else:
+            logger.warning(f"User {user.id} has null explanation level. Defaulting.")
+            explanation_level_int = DEFAULT_LEVEL_INT
     except (ValueError, TypeError):
         logger.warning(
-            f"User {user.id} has invalid explanation level format: '{raw_level}'. Defaulting to level {DEFAULT_LEVEL_INT}."
+            f"User {user.id} has invalid level format: '{raw_level}'. Defaulting."
         )
         explanation_level_int = DEFAULT_LEVEL_INT
 
-    # Get the prompt and level name from the mapping, using default if key is invalid/out of range
-    system_prompt, level_name = prompt_mapping.get(
-        explanation_level_int, prompt_mapping[DEFAULT_LEVEL_INT]
+    system_prompt, level_name = prompt_mapping[explanation_level_int]
+    logger.info(
+        f"Using level: {level_name} (Level {explanation_level_int}) for user {user.id}"
     )
+    return system_prompt
 
-    # Log a warning if the retrieved integer was not a valid key (e.g., 0, 5, etc.)
-    if explanation_level_int not in prompt_mapping:
-        logger.warning(
-            f"User {user.id} had out-of-range explanation level value: {explanation_level_int}. "
-            f"Defaulting to level {DEFAULT_LEVEL_INT} ({level_name})."
+
+session_router = APIRouter(prefix="/sessions", tags=["Sessions"])
+
+
+@session_router.post("/", response_model=SessionResponse, status_code=201)
+def create_session(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Creates a new chat session for the logged-in user,
+    naming it sequentially (Chat 1, Chat 2, etc.).
+    """
+    try:
+        session_count = (
+            db.query(func.count(ChatSession.id))
+            .filter(ChatSession.user_id == user.id)
+            .scalar()
+        )
+        next_session_title = f"Chat {session_count + 1}"
+
+        new_session = ChatSession(user_id=user.id, title=next_session_title)
+
+        db.add(new_session)
+        db.commit()
+        db.refresh(new_session)
+        logger.info(
+            f"Created new chat session '{next_session_title}' (ID: {new_session.id}) for user {user.id}"
+        )
+        return new_session
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating session for user {user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create chat session.")
+
+
+@session_router.get("/", response_model=List[SessionListItem])
+def list_sessions(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lists all chat sessions for the logged-in user, ordered by creation date."""
+    try:
+        sessions = (
+            db.query(ChatSession)
+            .filter(ChatSession.user_id == user.id)
+            .order_by(desc(ChatSession.created_at))
+            .all()
+        )
+        logger.info(f"Found {len(sessions)} sessions for user {user.id}")
+        return sessions
+    except Exception as e:
+        logger.error(f"Error listing sessions for user {user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve chat sessions.")
+
+
+@session_router.get("/{session_id}/history", response_model=List[MessageResponse])
+def get_session_history(
+    session_id: int = Path(
+        ..., title="The ID of the session to retrieve history for", ge=1
+    ),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = Query(50, description="Maximum number of messages to return", ge=1),
+):
+    """Fetches the message history for a specific chat session owned by the user."""
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == user.id)
+        .first()
+    )
+    if not session:
+        logger.warning(f"User {user.id} denied access/not found session {session_id}")
+        raise HTTPException(
+            status_code=404, detail="Session not found or access denied."
         )
 
+    try:
+        history = (
+            db.query(Chat)
+            .filter(Chat.session_id == session_id)
+            .order_by(Chat.timestamp.asc())
+            .limit(limit)
+            .all()
+        )
+        logger.info(
+            f"Returning {len(history)} history items for session {session_id} (User {user.id})."
+        )
+        return history
+    except Exception as e:
+        logger.error(
+            f"Failed to fetch history for session {session_id} (User {user.id}): {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Could not retrieve chat history for this session."
+        )
+
+
+@session_router.post("/{session_id}/messages", response_model=MessageResponse)
+def add_message_to_session(
+    request: MessageCreateRequest,
+    session_id: int = Path(
+        ..., title="The ID of the session to add the message to", ge=1
+    ),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    llm: Llama = Depends(get_llm),
+):
+    """Adds a new question/answer pair to a specific chat session."""
     logger.info(
-        f"Using explanation level: {level_name} (Level {explanation_level_int}) for user {user.id}"
+        f"Received question for session {session_id} from user {user.id}: '{request.question}'"
     )
 
-    # --- 2. Fetch Recent History for Context ---
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(
+            status_code=404, detail="Session not found or access denied."
+        )
+
+    system_prompt = get_system_prompt_for_user(user)
+
     try:
         recent_history_db = (
             db.query(Chat)
-            .filter(Chat.user_id == user.id)
-            .order_by(Chat.id.desc())
-            .limit(5)  # Limit context window size
+            .filter(Chat.session_id == session_id)
+            .order_by(Chat.timestamp.asc())
+            .limit(10)
             .all()
         )
-        recent_history_db.reverse()  # Order from oldest to newest for LLM
         logger.info(
-            f"Fetched {len(recent_history_db)} recent history items for user {user.id}."
+            f"Fetched {len(recent_history_db)} context items for session {session_id}."
         )
     except Exception as e:
-        logger.warning(f"Could not fetch chat history for user {user.id}: {e}")
+        logger.warning(f"Could not fetch chat history for session {session_id}: {e}")
         recent_history_db = []
 
-    # --- 3. Prepare messages list for the LLM (ChatML format) ---
     messages = [{"role": "system", "content": system_prompt}]
     for chat_item in recent_history_db:
-        # Ensure history items have question and answer before appending
         if chat_item.question and chat_item.answer:
             messages.append({"role": "user", "content": chat_item.question})
             messages.append({"role": "assistant", "content": chat_item.answer})
-    messages.append({
-        "role": "user",
-        "content": request.question,
-    })  # Add current question
+    messages.append({"role": "user", "content": request.question})
 
-    # --- 4. Generate LLM Response ---
+    assistant_response = "Error: Default response."
     try:
-        logger.info(f"Sending {len(messages)} messages to LLM for user {user.id}.")
-        # Refer to llama-cpp-python documentation for optimal parameters
+        logger.info(
+            f"Sending {len(messages)} messages to LLM for session {session_id}."
+        )
         completion = llm.create_chat_completion(
             messages=messages,
-            max_tokens=1500,  # Adjust based on expected response length for math problems
-            temperature=0.5,  # Lower temperature for more deterministic math explanations
-            stop=["\nUser:", "<|endoftext|>"],  # Example stop tokens
-            # top_p=0.9, # Example Nucleus sampling
+            max_tokens=1500,
+            temperature=0.5,
+            stop=["\nUser:", "<|endoftext|>", "<|user|>"],
         )
-
-        # Validate response structure
         if (
             completion
             and isinstance(completion.get("choices"), list)
@@ -206,95 +290,105 @@ def ask_question(
             and completion["choices"][0]["message"].get("content")
         ):
             assistant_response = completion["choices"][0]["message"]["content"].strip()
-            logger.info(f"LLM response received successfully for user {user.id}.")
+            logger.info(f"LLM response received for session {session_id}.")
         else:
             assistant_response = (
                 "Sorry, I encountered an issue generating a response. Please try again."
             )
             logger.error(
-                f"LLM returned an empty or invalid response structure for user {user.id}: {completion}"
+                f"LLM returned invalid structure for session {session_id}: {completion}"
             )
-            # Consider not saving this interaction or saving with an error flag
-
     except Exception as e:
         logger.error(
-            f"LLM inference error for user {user.id}: {e}", exc_info=True
-        )  # Log full traceback
-        # Consider raising HTTPException immediately if LLM fails critically
-        # For now, we'll set a generic error message and still attempt to save
-        assistant_response = (
-            f"Error during response generation. Please try again. (Details: {e})"
+            f"LLM inference error for session {session_id}: {e}", exc_info=True
         )
-        # Optional: raise HTTPException here if preferred
-        # raise HTTPException(status_code=500, detail="Failed to get response from ML model.")
+        assistant_response = (
+            f"Error during response generation. Please check logs. (Details: {e})"
+        )
 
-    # --- 5. Save Interaction to Database ---
     new_chat_record = None
     try:
-        logger.info(f"Attempting to save interaction for user {user.id} to database.")
+        logger.info(f"Saving interaction to session {session_id} for user {user.id}.")
         new_chat_record = Chat(
-            user_id=user.id,
+            session_id=session_id,
             question=request.question,
-            answer=assistant_response,  # Save the generated (or error) response
+            answer=assistant_response,
         )
         db.add(new_chat_record)
         db.commit()
-        db.refresh(new_chat_record)  # Get the ID and other DB-generated fields
+        db.refresh(new_chat_record)
         logger.info(
-            f"Chat interaction {new_chat_record.id} saved successfully for user {user.id}."
+            f"Chat interaction {new_chat_record.id} saved to session {session_id}."
         )
     except Exception as e:
         db.rollback()
         logger.error(
-            f"Database error saving chat for user {user.id}: {e}", exc_info=True
+            f"DB error saving chat to session {session_id}: {e}", exc_info=True
         )
-        # If saving fails, we can't return the ChatResponse structure as defined
-        raise HTTPException(
-            status_code=500, detail="Failed to save chat interaction history."
-        )
+        raise HTTPException(status_code=500, detail="Failed to save chat interaction.")
 
-    # --- 6. Return Response ---
-    # If DB save succeeded, new_chat_record has the required fields (id, question, answer)
-    # FastAPI uses the response_model (ChatResponse) and orm_mode to serialize.
     if new_chat_record:
-        # Note: Pydantic V2 uses `model_validate` instead of relying solely on orm_mode sometimes
-        # Ensure your Pydantic/FastAPI versions work well with orm_mode or adjust serialization
         return new_chat_record
     else:
-        # This case should ideally be caught by the HTTPException above, but acts as a safeguard
         logger.error(
-            f"Failed to return chat record for user {user.id} after attempting save."
+            f"Failed return chat record for session {session_id} after save attempt."
         )
         raise HTTPException(
-            status_code=500, detail="Failed create/retrieve chat record after saving."
+            status_code=500, detail="Failed create/retrieve chat record."
         )
 
 
-# --- Endpoint: Get History ---
-
-
-@router.get("/history", response_model=List[HistoryItem])
-def get_history(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Fetches the recent chat history (e.g., last 20 interactions)
-    for the currently logged-in user.
-    """
-    logger.info(f"Fetching chat history for user {user.id}.")
+@session_router.put("/{session_id}", response_model=SessionResponse)
+def update_session_title(
+    update_data: SessionUpdateRequest,
+    session_id: int = Path(..., title="The ID of the session to update", ge=1),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Updates the title of a specific chat session owned by the user."""
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(
+            status_code=404, detail="Session not found or access denied."
+        )
     try:
-        history = (
-            db.query(Chat)
-            .filter(Chat.user_id == user.id)
-            .order_by(Chat.id.desc())
-            .limit(20)  # Return a reasonable number of history items
-            .all()
-        )
-        logger.info(f"Returning {len(history)} history items for user {user.id}.")
-        # Pydantic V2 might need explicit list comprehension for validation if orm_mode isn't enough
-        # return [HistoryItem.model_validate(item) for item in history]
-        return history  # Return the list of ORM objects
+        session.title = update_data.title
+        db.commit()
+        db.refresh(session)
+        logger.info(f"Updated title for session {session_id} for user {user.id}")
+        return session
     except Exception as e:
-        logger.error(
-            f"Failed to fetch chat history for user {user.id}: {e}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail="Could not retrieve chat history.")
+        db.rollback()
+        logger.error(f"Error updating session {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update session title.")
 
+
+@session_router.delete("/{session_id}", status_code=204)
+def delete_session(
+    session_id: int = Path(..., title="The ID of the session to delete", ge=1),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Deletes a specific chat session and all its messages."""
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(
+            status_code=404, detail="Session not found or access denied."
+        )
+    try:
+        db.delete(session)
+        db.commit()
+        logger.info(f"Deleted session {session_id} for user {user.id}")
+        return None
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting session {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete session.")
