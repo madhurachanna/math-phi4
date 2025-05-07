@@ -25,6 +25,18 @@ Ensure you have the following installed:
 
 ---
 
+Download the saved GGUF Weights from GDRIVE - https://drive.google.com/file/d/12JloQZULnGc0NTeLDryThee7SmX3jmLJ/view?usp=sharing
+
+Video Link to see the project in action - https://drive.google.com/file/d/1MjoGwq-ZAmMc6bu7eIyMeyYQtvN5RiTO/view?usp=sharing
+
+For Environment details please go through the 'environment.yml' file. Main Libraries used are -
+
+Unsloth
+Pytorch
+
+---
+
+
 ## 🔧 Backend Setup (FastAPI + SQLite)
 
 1. Navigate to the backend folder:
@@ -125,6 +137,8 @@ Ensure you have the following installed:
 - Deploy to Vercel, Netlify, or GitHub Pages.
 
 ---
+
+![Screenshot 2025-05-07 at 4 32 42 PM-imageonline co-merged](https://github.com/user-attachments/assets/d5967ba8-9cd5-450c-96d1-4cad64447102)
 
 ## 🏗 Future Improvements
 
